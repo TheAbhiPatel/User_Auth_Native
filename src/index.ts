@@ -5,6 +5,7 @@ import connectDB from "./utils/connectDB";
 import router from "./routes";
 import deserializeUser from "./middleware/deserializeUser";
 import requestLogger from "./middleware/requestLogger";
+import nodemailer from "nodemailer";
 
 const app: Application = express();
 
@@ -18,8 +19,11 @@ app.use(requestLogger);
 // configure routes
 app.use("/api", router);
 
-app.get("/", (req: Request, res: Response) => {
-  res.status(200).json({ success: true, message: "hey crowd funding" });
+app.get("/", async (req: Request, res: Response) => {
+  let testAccount = await nodemailer.createTestAccount();
+  res
+    .status(200)
+    .json({ success: true, message: "hey crowd funding", testAccount });
 });
 
 app.use((req: Request, res: Response) => {

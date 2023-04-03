@@ -2,9 +2,8 @@ import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import userModel from "../models/user.model";
 import jwt, { JsonWebTokenError } from "jsonwebtoken";
-import { JWT_SECRET_FOR_EMAIL, JWT_SECRET_FOR_LOGIN } from "../config";
+import { JWT_SECRET_FOR_LOGIN } from "../config";
 import sendEmail from "../utils/sendEmail";
-import { verifyJwt } from "../utils/verifyJwt";
 
 export const signupUser = async (req: Request, res: Response) => {
   const { firstName, lastName, email, password } = req.body;
@@ -24,6 +23,10 @@ export const signupUser = async (req: Request, res: Response) => {
       vCode,
     });
     const previewUrl = await sendEmail(firstName, email, vCode, true);
+    if (previewUrl == undefined)
+      return res
+        .status(500)
+        .json({ success: false, message: "Email not sent, please try again" });
     res.status(201).json({
       success: true,
       message: "User registered successfully, Please verify your email.",
@@ -128,6 +131,12 @@ export const resendVerificationEmail = async (req: Request, res: Response) => {
     await user.save();
 
     const previewUrl = await sendEmail(user.firstName, email, vCode, true);
+    console.log("previewUrl ------ ", previewUrl);
+
+    if (previewUrl == undefined)
+      return res
+        .status(500)
+        .json({ success: false, message: "Email not sent, please try again" });
 
     res.status(200).json({
       success: true,
@@ -159,6 +168,11 @@ export const forgetPasswordEmail = async (req: Request, res: Response) => {
     await user.save();
 
     const previewUrl = await sendEmail(user.firstName, email, fCode, false);
+
+    if (previewUrl == undefined)
+      return res
+        .status(500)
+        .json({ success: false, message: "Email not sent, please try again" });
 
     res.status(200).json({
       success: true,

@@ -1,4 +1,4 @@
-import zod, { object, string, TypeOf } from "zod";
+import zod, { number, object, string, TypeOf } from "zod";
 
 export const signupUserSchema = object({
   body: object({
@@ -22,8 +22,8 @@ export const loginUserSchema = object({
   }),
 });
 export const verifyEmailSchema = object({
-  query: object({
-    token: string({ required_error: "'token' is required." }),
+  body: object({
+    vCode: number({ required_error: "'vCode' is required." }),
   }),
 });
 export const resendVerificationEmailSchema = object({
@@ -41,13 +41,11 @@ export const forgetPasswordEmailSchema = object({
   }),
 });
 export const resetPasswordSchema = object({
-  query: object({
-    token: string({ required_error: "'token' is required." }),
-  }),
   body: object({
     password: string({ required_error: "'password' is required." }).min(
       6,
       "password must be at least 6 character long."
     ),
+    fCode: number({ required_error: "'fCode' is required." }),
   }),
 });
