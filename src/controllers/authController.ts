@@ -15,16 +15,15 @@ export const signupUser = async (req: Request, res: Response) => {
         .status(403)
         .json({ success: false, message: "User registered already." });
     const hashPass = await bcrypt.hash(password, 10);
+    const vCode = Math.ceil(Math.random() * 1000000);
     const newUser = await userModel.create({
       firstName,
       lastName,
       email,
       password: hashPass,
+      vCode,
     });
-    const token = jwt.sign({ userId: newUser.id }, JWT_SECRET_FOR_EMAIL, {
-      expiresIn: "15m",
-    });
-    const previewUrl = await sendEmail(firstName, email, token, true);
+    const previewUrl = await sendEmail(firstName, email, vCode, true);
     res.status(201).json({
       success: true,
       message: "User registered successfully, Please verify your email.",
@@ -75,20 +74,9 @@ export const loginUser = async (req: Request, res: Response) => {
 };
 
 export const verifyEmail = async (req: Request, res: Response) => {
-  const { token } = req.query;
+  const { email, vCode } = req.body;
   try {
-    if (!token)
-      return res.status(404).json({
-        success: false,
-        message: "Verification token not found.",
-      });
-    const decoded = verifyJwt<{ userId: string }>(token, JWT_SECRET_FOR_EMAIL);
-    if (!decoded)
-      return res.status(401).json({
-        success: false,
-        message: "Invalid token.",
-      });
-    const user = await userModel.findById(decoded.userId);
+    const user = await userModel.findOne({ email });
     if (!user)
       return res.status(404).json({
         success: false,
@@ -99,7 +87,13 @@ export const verifyEmail = async (req: Request, res: Response) => {
         success: false,
         message: "User already verified.",
       });
+    if (user.vCode != vCode)
+      return res.status(403).json({
+        success: false,
+        message: "Invalid verification code",
+      });
     user.isVerified = true;
+    user.vCode = 0;
     await user.save();
     res
       .status(200)
@@ -129,10 +123,11 @@ export const resendVerificationEmail = async (req: Request, res: Response) => {
         success: false,
         message: "User already verified",
       });
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET_FOR_EMAIL, {
-      expiresIn: "15m",
-    });
-    const previewUrl = await sendEmail(user.firstName, email, token, true);
+    const vCode = Math.ceil(Math.random() * 1000000);
+    user.vCode = vCode;
+    await user.save();
+
+    const previewUrl = await sendEmail(user.firstName, email, vCode, true);
 
     res.status(200).json({
       success: true,
@@ -159,10 +154,11 @@ export const forgetPasswordEmail = async (req: Request, res: Response) => {
         success: false,
         message: "User not verified, Please verify your email first.",
       });
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET_FOR_EMAIL, {
-      expiresIn: "15m",
-    });
-    const previewUrl = await sendEmail(user.firstName, email, token, false);
+    const fCode = Math.ceil(Math.random() * 1000000);
+    user.fCode = fCode;
+    await user.save();
+
+    const previewUrl = await sendEmail(user.firstName, email, fCode, false);
 
     res.status(200).json({
       success: true,
@@ -176,28 +172,22 @@ export const forgetPasswordEmail = async (req: Request, res: Response) => {
 };
 
 export const resetPassword = async (req: Request, res: Response) => {
-  const { token } = req.query;
-  const { password } = req.body;
+  const { email, password, fCode } = req.body;
   try {
-    if (!token)
-      return res.status(404).json({
-        success: false,
-        message: "Verification token not found.",
-      });
-    const decoded = verifyJwt<{ userId: string }>(token, JWT_SECRET_FOR_EMAIL);
-    if (!decoded)
-      return res.status(401).json({
-        success: false,
-        message: "Invalid token.",
-      });
-    const user = await userModel.findById(decoded.userId);
+    const user = await userModel.findOne({ email });
     if (!user)
       return res.status(404).json({
         success: false,
         message: "User not found.",
       });
+    if (user.fCode != fCode)
+      return res.status(403).json({
+        success: false,
+        message: "Invalid forget password code",
+      });
     const hashPass = await bcrypt.hash(password, 10);
     user.password = hashPass;
+    user.fCode = 0;
     await user.save();
 
     res.status(200).json({
